@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLURIM / Precision Aesthetic Technology</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto+Sans+JP', sans-serif;
+            background-color: #f8fafc;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .reveal-container {
+            max-width: 896px; /* 4xl */
+            height: 100vh;
+            margin: 0 auto;
+            position: relative;
+            background: white;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        .fade-enter {
+            opacity: 0;
+            transform: scale(1.05);
+        }
+        .fade-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        .hidden-section {
+            display: none !important;
+        }
+        /* スクロールバー非表示 */
+        #result-section::-webkit-scrollbar {
+            display: none;
+        }
+        #result-section {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+    <div class="reveal-container overflow-hidden">
+        
+        <!-- 1. INTRO SECTION -->
+        <section id="intro-section" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-8 bg-white transition-all duration-700">
+            <div class="relative mb-8 text-emerald-500">
+                <i data-lucide="fingerprint" class="w-24 h-24 stroke-[1.5]"></i>
+                <div class="absolute inset-0 bg-emerald-100 rounded-full -z-10 animate-ping opacity-20"></div>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-black italic mb-4 text-center tracking-tighter leading-tight text-slate-800">
+                あなたが気になる部位はどこ？
+            </h1>
+            <p class="text-emerald-600 text-sm mb-12 tracking-[0.2em] font-bold uppercase">Identify Your Target Area</p>
+            <p class="text-slate-500 text-sm mb-10 text-center max-w-xs leading-relaxed">
+                気になる部位を選び、理想のラインをなぞってください。<br>
+                スルリムが導き出す、本来の姿が露わになります。
+            </p>
+            <div class="grid grid-cols-1 gap-4 w-full max-w-xs">
+                <button onclick="startExperience('chin')" class="group relative py-5 border border-emerald-500/20 bg-emerald-50 hover:bg-emerald-500 hover:text-white transition-all font-bold tracking-[0.3em] rounded-full overflow-hidden text-emerald-700 shadow-sm">
+                    <span class="relative z-10 flex items-center justify-center gap-2">
+                        顎下 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </span>
+                </button>
+                <button onclick="startExperience('belly')" class="group relative py-5 border border-emerald-500/20 bg-emerald-50 hover:bg-emerald-500 hover:text-white transition-all font-bold tracking-[0.3em] rounded-full overflow-hidden text-emerald-700 shadow-sm">
+                    <span class="relative z-10 flex items-center justify-center gap-2">
+                        腹 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </span>
+                </button>
+                <button onclick="startExperience('arm')" class="group relative py-5 border border-emerald-500/20 bg-emerald-50 hover:bg-emerald-500 hover:text-white transition-all font-bold tracking-[0.3em] rounded-full overflow-hidden text-emerald-700 shadow-sm">
+                    <span class="relative z-10 flex items-center justify-center gap-2">
+                        二の腕 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. REVEAL EXPERIENCE SECTION -->
+        <section id="reveal-section" class="hidden-section absolute inset-0 z-10 bg-slate-100 flex flex-col items-center justify-center">
+            <!-- Background Image Layer -->
+            <div id="after-image-container" class="absolute inset-0 z-0">
+                <img id="after-img" src="" class="w-full h-full object-cover grayscale-[0.05]" alt="Ideal Result">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/60"></div>
+            </div>
+
+            <!-- Canvas Layer for Sparkling Particles -->
+            <canvas id="particle-canvas" class="absolute inset-0 z-20 pointer-events-none"></canvas>
+            
+            <!-- Canvas Layer for Scratching -->
+            <canvas id="scratch-canvas" class="absolute inset-0 z-10 cursor-crosshair"></canvas>
+
+            <!-- HUD Overlay -->
+            <div class="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-between py-16 px-8">
+                <div id="loading-indicator" class="bg-white/80 px-4 py-2 rounded-full backdrop-blur-sm shadow-sm text-emerald-500 text-sm font-bold animate-pulse">
+                    読み込み中...
+                </div>
+                <div id="reveal-guide" class="hidden bg-white/60 backdrop-blur-md px-8 py-6 rounded-3xl shadow-sm border border-white/40 text-center">
+                    <div class="text-emerald-600 flex flex-col items-center gap-2 animate-pulse">
+                        <i data-lucide="layers" class="w-8 h-8"></i>
+                        <h2 class="text-2xl font-black italic tracking-tighter">理想のラインをなぞって</h2>
+                    </div>
+                    <p class="text-[10px] text-emerald-800 mt-2 tracking-widest uppercase font-bold opacity-60">Sculpt your ideal line</p>
+                </div>
+                <button id="finish-btn" onclick="showResult()" class="hidden pointer-events-auto px-10 py-5 bg-emerald-500 text-white font-black uppercase tracking-[0.4em] rounded-full shadow-lg flex items-center gap-3 hover:bg-emerald-600 hover:scale-105 transition-all active:scale-95 text-sm">
+                    変化を見てみる <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- 3. RESULT SECTION -->
+        <section id="result-section" class="hidden-section absolute inset-0 z-40 bg-white/90 backdrop-blur-xl overflow-y-auto">
+            <div class="w-full min-h-[40vh] relative overflow-hidden shadow-lg border-b border-emerald-100">
+                <img id="final-result-img" src="" class="w-full h-full object-cover" alt="Final Result">
+                <div class="absolute inset-0 bg-gradient-to-t from-white/90 via-transparent to-transparent pointer-events-none"></div>
+            </div>
+            
+            <div class="p-8 flex flex-col items-center text-center max-w-2xl mx-auto">
+                <div class="flex items-center gap-2 text-emerald-600 mb-2">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    <span class="text-xs font-bold tracking-[0.5em] uppercase">Result Optimized</span>
+                </div>
+                <h2 class="text-3xl md:text-4xl font-black italic mb-6 text-slate-800 tracking-tighter leading-tight">
+                    「余計なものを削れば、<br>あなたはもっと<span class="text-emerald-500">美しい</span>。」
+                </h2>
+
+                <div class="w-full bg-emerald-50/50 rounded-3xl p-6 mb-8 border border-emerald-100/50">
+                    <h3 class="text-emerald-700 font-black text-xl mb-6 flex items-center justify-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> 痩せるとここまで変わる！！
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                        <div class="flex flex-col gap-2">
+                            <div class="text-emerald-600 font-bold text-sm flex items-center gap-1">
+                                <i data-lucide="check-circle-2" class="w-4 h-4"></i> 「着たい服」を基準に
+                            </div>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                体型を隠すオーバーサイズではなく、ウエストのラインが出るタイトな服を自由に着こなせます。
+                            </p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="text-emerald-600 font-bold text-sm flex items-center gap-1">
+                                <i data-lucide="check-circle-2" class="w-4 h-4"></i> 正面からの「横幅」
+                            </div>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                揺れるたびに気になっていた二の腕も、外側の張りがなくなるだけで肩周りが華奢に見え、着痩せ効果抜群です。
+                            </p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="text-emerald-600 font-bold text-sm flex items-center gap-1">
+                                <i data-lucide="check-circle-2" class="w-4 h-4"></i> 写真の「加工」いらず
+                            </div>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                アプリで輪郭を削る手間がゼロに。不意の横顔や、下からのアングルでも「今の私、悪くない」と思えます。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="result-description" class="text-slate-500 text-sm mb-12 leading-relaxed max-sm:text-xs">
+                    <!-- JS injects description here -->
+                </p>
+                
+                <div class="flex flex-col gap-4 w-full max-w-xs mb-12">
+                    <button class="py-5 bg-emerald-500 text-white font-black uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-600 rounded-sm transition-all">
+                        無料カウンセリングを予約
+                    </button>
+                    <button onclick="location.reload()" class="py-3 text-[10px] font-bold tracking-widest text-slate-400 hover:text-emerald-600 transition-colors flex items-center justify-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> 体験をやり直す
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER BRANDING -->
+        <div class="absolute bottom-6 w-full text-center pointer-events-none z-30 opacity-40">
+            <div class="text-[9px] tracking-[0.5em] uppercase text-emerald-700 flex items-center justify-center gap-3 font-bold">
+                <span class="w-12 h-px bg-emerald-200"></span>
+                SLURIM / Precision Aesthetic Technology
+                <span class="w-12 h-px bg-emerald-200"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PART_DATA = {
+            chin: {
+                label: '顎下',
+                description: 'スルリムが叶えるのは、360度どこから見ても美しいフェイスライン。独自の破砕技術により、あなたの横顔に揺るぎない自信を宿します。',
+                before: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800&auto=format&fit=crop',
+                after: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=800&auto=format&fit=crop'
+            },
+            belly: {
+                label: '腹',
+                description: '隠したかったウエストラインが、確信へと変わる。スルリムの精密エネルギーが、深層に眠る本来の曲線美を呼び覚まします。',
+                before: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=800&auto=format&fit=crop',
+                after: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=800&auto=format&fit=crop'
+            },
+            arm: {
+                label: '二の腕',
+                description: 'スルリムなら、ノースリーブを美しく着こなせる、しなやかで力強いラインへと導きます。',
+                before: 'https://images.unsplash.com/photo-1533038590840-1cde6e668a91?q=80&w=800&auto=format&fit=crop',
+                after: 'https://images.unsplash.com/photo-1571731956672-f2b94d7dd0cb?q=80&w=800&auto=format&fit=crop'
+            }
+        };
+
+        let selectedPart = null;
+        let isDrawing = false;
+        let isImageLoaded = false;
+        let particles = [];
+        let scratchCtx, particleCtx;
+        let scratchCanvas, particleCanvas;
+
+        function startExperience(id) {
+            selectedPart = PART_DATA[id];
+            
+            // UI Transition
+            document.getElementById('intro-section').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('reveal-section').classList.remove('hidden-section');
+            
+            // Set Images
+            document.getElementById('after-img').src = selectedPart.after;
+            document.getElementById('final-result-img').src = selectedPart.after;
+            document.getElementById('result-description').textContent = selectedPart.description;
+
+            initCanvas();
+        }
+
+        function initCanvas() {
+            scratchCanvas = document.getElementById('scratch-canvas');
+            particleCanvas = document.getElementById('particle-canvas');
+            const container = scratchCanvas.parentElement;
+
+            scratchCanvas.width = particleCanvas.width = container.clientWidth;
+            scratchCanvas.height = particleCanvas.height = container.clientHeight;
+
+            scratchCtx = scratchCanvas.getContext('2d', { willReadFrequently: true });
+            particleCtx = particleCanvas.getContext('2d');
+
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = selectedPart.before;
+
+            img.onload = () => {
+                const scale = Math.max(scratchCanvas.width / img.width, scratchCanvas.height / img.height);
+                const x = (scratchCanvas.width - img.width * scale) / 2;
+                const y = (scratchCanvas.height - img.height * scale) / 2;
+                
+                scratchCtx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                
+                // Add faint veil
+                scratchCtx.save();
+                scratchCtx.globalCompositeOperation = 'source-atop';
+                scratchCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                scratchCtx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+                scratchCtx.restore();
+
+                // Setup scratch mode
+                scratchCtx.lineCap = 'round';
+                scratchCtx.lineJoin = 'round';
+                scratchCtx.globalCompositeOperation = 'destination-out';
+                scratchCtx.lineWidth = 65;
+
+                document.getElementById('loading-indicator').classList.add('hidden');
+                document.getElementById('reveal-guide').classList.remove('hidden');
+                
+                isImageLoaded = true;
+                requestAnimationFrame(animateParticles);
+            };
+
+            img.onerror = () => {
+                scratchCtx.fillStyle = '#e2e8f0';
+                scratchCtx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+                document.getElementById('loading-indicator').classList.add('hidden');
+                document.getElementById('reveal-guide').classList.remove('hidden');
+                isImageLoaded = true;
+                requestAnimationFrame(animateParticles);
+            };
+
+            // Event Listeners
+            scratchCanvas.addEventListener('mousedown', startDrawing);
+            scratchCanvas.addEventListener('mousemove', moveDrawing);
+            window.addEventListener('mouseup', stopDrawing);
+            
+            scratchCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+            scratchCanvas.addEventListener('touchmove', moveDrawing, { passive: false });
+            window.addEventListener('touchend', stopDrawing);
+        }
+
+        function getPos(e) {
+            const rect = scratchCanvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDrawing(e) {
+            if (!isImageLoaded || !scratchCtx) return;
+            isDrawing = true;
+            const pos = getPos(e);
+            scratchCtx.beginPath();
+            scratchCtx.moveTo(pos.x, pos.y);
+        }
+
+        function moveDrawing(e) {
+            if (!isDrawing || !scratchCtx) return;
+            if (e.cancelable) e.preventDefault();
+            const pos = getPos(e);
+            scratchCtx.lineTo(pos.x, pos.y);
+            scratchCtx.stroke();
+
+            // Spawn particles
+            const colors = ['#d1fae5', '#a7f3d0', '#ffffff', '#6ee7b7'];
+            for(let i=0; i<8; i++) {
+                particles.push({
+                    id: Math.random(),
+                    x: pos.x,
+                    y: pos.y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    size: Math.random() * 2 + 1,
+                    alpha: 1,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rotation: Math.random() * Math.PI,
+                    rotV: (Math.random() - 0.5) * 0.1
+                });
+            }
+        }
+
+        function stopDrawing() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            checkCompletion();
+        }
+
+        function checkCompletion() {
+            if (!scratchCtx) return;
+            try {
+                const imageData = scratchCtx.getImageData(0, 0, scratchCanvas.width, scratchCanvas.height);
+                const pixels = imageData.data;
+                let transparent = 0;
+                for (let i = 3; i < pixels.length; i += 4) {
+                    if (pixels[i] === 0) transparent++;
+                }
+                const ratio = transparent / (pixels.length / 4);
+                if (ratio > 0.4) {
+                    document.getElementById('finish-btn').classList.remove('hidden');
+                    document.getElementById('reveal-guide').classList.add('opacity-40');
+                }
+            } catch (e) {
+                // フォールバック
+                document.getElementById('finish-btn').classList.remove('hidden');
+            }
+        }
+
+        function animateParticles() {
+            if (!particleCtx) return;
+            particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            particleCtx.globalCompositeOperation = 'lighter';
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.015;
+                p.rotation += p.rotV;
+
+                const twinkle = Math.sin(Date.now() * 0.01 + p.id) * 0.5 + 0.5;
+                particleCtx.save();
+                particleCtx.translate(p.x, p.y);
+                particleCtx.rotate(p.rotation);
+                particleCtx.fillStyle = p.color;
+                particleCtx.globalAlpha = Math.max(0, p.alpha * twinkle);
+
+                if (Math.floor(p.id * 100) % 4 === 0) {
+                    const size = p.size * 2.5;
+                    particleCtx.fillRect(-size / 8, -size / 2, size / 4, size);
+                    particleCtx.fillRect(-size / 2, -size / 8, size, size / 4);
+                } else {
+                    particleCtx.beginPath();
+                    particleCtx.arc(0, 0, p.size, 0, Math.PI * 2);
+                    particleCtx.fill();
+                }
+                particleCtx.restore();
+
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        function showResult() {
+            document.getElementById('result-section').classList.remove('hidden-section');
+            document.getElementById('result-section').classList.add('fade-active');
+            lucide.createIcons();
+        }
+
+        // Initialize Lucide icons
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
